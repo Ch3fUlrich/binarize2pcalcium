@@ -137,6 +137,9 @@ class Calcium():
         #
         self.load_yaml_file(session_name)
         
+        #
+        self.save_figures = True
+        
     #
     def load_yaml_file(self, session_name=None):
         session_name = str(session_name) if type(session_name)!=str else session_name
@@ -1272,16 +1275,20 @@ class Calcium():
                 self.binarize_fluorescence()
 
                 # generate standard randomized plots:
-                self.save_sample_traces()
-                self.show_rasters(True)
+                if self.save_figures:
+                    print ("...saving figures...")
+                    self.save_sample_traces()
+                    self.show_rasters(True)
         #
         else:
             self.session_name = "merged" if self.session_id_toprocess=="merged" else self.session_names[int(self.session_id_toprocess)]
             self.binarize_fluorescence()
 
             # generate standard randomized plots:
-            self.save_sample_traces()
-            self.show_rasters(True)
+            if self.save_figures:
+                print ("...saving figures...")
+                self.save_sample_traces()
+                self.show_rasters(True)
 
     #
     def binarize_fluorescence(self):
