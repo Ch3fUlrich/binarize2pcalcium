@@ -26,10 +26,6 @@ import sys
 module_path = os.path.abspath(os.path.join('..'))
 sys.path.append(module_path)
 
-try:
-    from utils.wheel import wheel
-except:
-    from manifolds.donlabtools.utils.wheel import wheel
 #from utils.calcium import calcium
 #from utils.animal_database import animal_database
 from statistics import NormalDist#, mode
@@ -38,13 +34,6 @@ from scipy.stats import mode
 from sklearn import metrics
 from sklearn import datasets, linear_model
 from sklearn.metrics import mean_squared_error, r2_score
-
-
-import sys
-module_path = os.path.abspath(os.path.join('..'))
-sys.path.append(module_path)
-
-#from utils.wheel import wheel
 
 
 #
