@@ -8,8 +8,9 @@ import yaml
 import scipy
 import parmap
 import sklearn
-from scipy.signal import butter, sosfilt, sosfreqz
+from scipy.signal import butter, sosfilt, sosfreqz, filtfilt
 from scipy import stats
+import cv2
 
 #
 from statistics import NormalDist#, mode
@@ -1285,7 +1286,7 @@ class Calcium():
                                             self.animal_id,
                                             self.session_name,
                                             'plane0')
-				print ("... setting data dir to : ", self.data_dir)
+                print ("... setting data dir to : ", self.data_dir)
                 
 
             # load suite2p data
