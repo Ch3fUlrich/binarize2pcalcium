@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='binarize2pcalcium',
-    version='0.1.5',
+    version='0.1.6',
     packages=['binarize2pcalcium'],
     install_requires=[
         'numpy',
@@ -71,7 +71,7 @@ setup(
 
 	   #
 	   c.binarize_data()
-	"""
+	""",
     long_description_content_type='text/markdown',
 )
 
