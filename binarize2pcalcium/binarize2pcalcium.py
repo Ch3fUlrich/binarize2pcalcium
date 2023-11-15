@@ -1,33 +1,17 @@
 import numpy as np
 import os
 from tqdm import trange, tqdm
-from scipy.signal import butter, lfilter, freqz, filtfilt
 import matplotlib.pyplot as plt
 import yaml
-import glob
 
-# from tsnecuda import TSNE
-# import umap
-from sklearn.decomposition import PCA
-import pickle as pk
+#
 import scipy
-import scipy.io
-from scipy.spatial import ConvexHull, convex_hull_plot_2d
 import parmap
-import networkx as nx
 import sklearn
-import pandas as pd
-import cv2
 from scipy.signal import butter, sosfilt, sosfreqz
-from sklearn import datasets, linear_model
 from scipy import stats
 
-import sys
-module_path = os.path.abspath(os.path.join('..'))
-sys.path.append(module_path)
-
-#from utils.calcium import calcium
-#from utils.animal_database import animal_database
+#
 from statistics import NormalDist#, mode
 from scipy.stats import mode
 
@@ -383,7 +367,6 @@ class Calcium():
         #
         self.mode_window = None #*30
 
-
         #
         self.min_width_event_onphase = 30
         self.min_width_event_upphase = 10
@@ -393,8 +376,6 @@ class Calcium():
         self.remove_ends = False                     # delete the first and last x seconds in case [ca] imaging had issues
         self.detrend_filter_threshold = 0.001
         self.mode_window = 30*30  # None: compute mode on entire time; Value: sliding window based - baseline detection # of frames to use to compute mode
-
-        
 
     #
     def load_calcium(self):
@@ -1006,6 +987,12 @@ class Calcium():
         else:
             self.binarize_fluorescence()
 
+        # generate standard randomized plots:
+        if self.save_figures:
+            print ("...saving figures...")
+            self.save_sample_traces()
+            self.show_rasters(True)
+            
 	#
     def get_footprint_contour(self, cell_id, cell_boundary='concave_hull'):
         points = np.vstack((self.stat[cell_id]['xpix'],
@@ -1257,7 +1244,6 @@ class Calcium():
         if self.yaml_file_exists==False:
             return
 
-
         # here we loop over all sessions
         if self.session_id_toprocess=='a':
             
@@ -1299,6 +1285,7 @@ class Calcium():
                                             self.animal_id,
                                             self.session_name,
                                             'plane0')
+				print ("... setting data dir to : ", self.data_dir)
                 
 
             # load suite2p data
@@ -1317,19 +1304,15 @@ class Calcium():
                                             str(self.session_name)
                                             )
             # use glob wild card to grab the .csv file from the directory
-            #temp_loc = 
             self.fname_inscopix = glob.glob(os.path.join(self.data_dir,
                                                             '*.csv'))[0]
-
 
             #
             self.load_inscopix()
 
         #
         fname_out = os.path.join(self.data_dir,
-                                 'binarized_traces.npz'
-                                 )
-
+                                 'binarized_traces.npz')
 
         #
         if os.path.exists(fname_out)==False or self.recompute_binarization:
@@ -1337,21 +1320,6 @@ class Calcium():
             ####################################################
             ########### FILTER FLUROESCENCE TRACES #############
             ####################################################
-
-            #
-            # if self.verbose:
-            #     print ('')
-            #     print ("  Binarization parameters: ")
-            #     print ("        low pass filter low cuttoff: ", self.high_cutoff, "hz")
-            #     #print ("        oasis_thresh_prefilter: ", self.oasis_thresh_prefilter)
-            #     #print ("        min_thresh_std_oasis: ",  self.min_thresh_std_oasis)
-            #     print ("        min_thresh_std_onphase: ", self.min_thresh_std_onphase)
-            #     print ("        min_thresh_std_upphase: ", self.min_thresh_std_upphase)
-            #     print ("        min_width_event_onphase: ", self.min_width_event_onphase)
-            #     print ("        min_width_event_upphase: ", self.min_width_event_upphase)
-            #     print ("        min_width_event_oasis: ", self.min_width_event_oasis)
-            #     print ("        min_event_amplitude: ", self.min_event_amplitude)
-
 
             # compute DF/F on raw data, important to get correct SNR values
             # abs is required sometimes for inscopix data that returns baseline fixed data
@@ -1388,16 +1356,11 @@ class Calcium():
             ####################################################
             ###### BINARIZE FILTERED FLUORESCENCE ONPHASE ######
             ####################################################
-            # compute global std on filtered/detrended signal
-            # OLD METHOD of findnig threholds for all cells based on distribution of STDs
-            #std_global = self.compute_std_global(self.F_detrended)
-            #
 
             #
             ll = []
             for k in range(self.F_detrended.shape[0]):
                 ll.append([self.F_detrended[k],k])
-                #print (k,len(ll))
 
             #
             if self.parallel_flag:
