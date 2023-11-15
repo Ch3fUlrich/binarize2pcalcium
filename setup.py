@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='binarize2pcalcium',
-    version='0.1.5',
+    version='0.1.6',
     packages=['binarize2pcalcium'],
     install_requires=[
         'numpy',
@@ -18,7 +18,34 @@ setup(
     ],
     
     long_description= """
-    
+    Binarize2PCalcium
+	=================
+
+	Binarize2PCalcium is a Python package for processing calcium imaging data.
+
+	Features
+	--------
+
+	- Support for data preprocessing.
+	- Visualization tools for calcium imaging data.
+
+	Installation
+	------------
+
+	You can install Binarize2PCalcium using pip:
+
+	.. code-block:: bash
+
+	   pip install binarize2pcalcium
+
+	Usage
+	-----
+
+	To use Binarize2PCalcium, import the package in your Python code:
+
+	.. code-block:: python
+
+    import binarize2pcalcium
 
     from binarize2pcalcium import binarize2pcalcium as binca
 
@@ -49,6 +76,6 @@ setup(
 	c.binarize_data()
        
     
-    """
+    """,
 )
 
