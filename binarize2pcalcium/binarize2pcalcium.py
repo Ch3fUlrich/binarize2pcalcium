@@ -423,14 +423,7 @@ class Calcium():
         
         #
         remove_bad_cells=self.remove_bad_cells
-        
-        #print ('')
-        #print ('')
-        suffix1 = 'suite2p'
-        suffix2 = 'plane0'
-        
-        self.fix_data_dir()
-        
+               
         #
         self.F = np.load(os.path.join(self.data_dir,
                                       'F.npy'), allow_pickle=True)
@@ -451,7 +444,6 @@ class Calcium():
 
         self.session_dir = os.path.join(self.data_dir,
                                    'plane0')
-
 
 
         ############################################################
@@ -482,6 +474,7 @@ class Calcium():
             print ("         self.stat (footprints structure): ", self.stat.shape)
             print ("         mean std over all cells : ", std_global)
 
+	#
     def compute_std_global(self, F):
         """
         This function calculates the global standard deviation of the input data F. 
@@ -963,7 +956,7 @@ class Calcium():
 
     def load_binarization(self):
 
-        self.fix_data_dir()
+        # self.fix_data_dir()
         
         #
         fname_out = os.path.join(self.data_dir,'binarized_traces.npz')
@@ -1013,6 +1006,7 @@ class Calcium():
         else:
             self.binarize_fluorescence()
 
+	#
     def get_footprint_contour(self, cell_id, cell_boundary='concave_hull'):
         points = np.vstack((self.stat[cell_id]['xpix'],
                             self.stat[cell_id]['ypix'])).T
@@ -1293,16 +1287,13 @@ class Calcium():
     #
     def binarize_fluorescence(self):
 
-        print ("")
-        print ("BINARIZING: ", self.session_name)
-        
         #
         if self.data_type=='2p':
 
             # set paramatrs
             self.set_default_parameters_2p()
 
-            #
+            # if we don't already have a data dir, set to default
             if not self.data_dir:
                 self.data_dir = os.path.join(self.root_dir,
                                             self.animal_id,
