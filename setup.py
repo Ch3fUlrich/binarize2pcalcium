@@ -17,5 +17,7 @@ setup(
         'parmap',
     ],
     
+    
+	long_description="""# Markdown supported!\n\n* Cheer\n* Celebrate\n""",
 )
 
