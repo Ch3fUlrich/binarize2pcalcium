@@ -433,7 +433,6 @@ class Calcium():
         #
         self.min_width_event_onphase = 30
         self.min_width_event_upphase = 10
-        self.recompute_binarization = True
 
         self.show_plots =False
         self.remove_ends = False                     # delete the first and last x seconds in case [ca] imaging had issues
