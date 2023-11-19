@@ -858,107 +858,109 @@ class Calcium():
 
         #
         return traces_out
+    
     #
-    # def filter_model(self, traces):
-    #     traces_out = traces.copy()
-    #     t = np.arange(traces[0].shape[0])
-    #     #print ("... TODO: automate the polynomial fit search using RMS optimization?!...")
-    #     #
-    #     for k in trange(traces.shape[0], desc='model filter: remove bleaching or trends'):
-    #         #
-    #         temp = traces[k]
-    #         # if k==0:
-    #         #     plt.plot(t,temp,c='blue')
+    def filter_model(self, traces):
+        traces_out = traces.copy()
+        t = np.arange(traces[0].shape[0])
+        #print ("... TODO: automate the polynomial fit search using RMS optimization?!...")
+        #
+        for k in trange(traces.shape[0], desc='model filter: remove bleaching or trends'):
+            #
+            temp = traces[k]
+            # if k==0:
+            #     plt.plot(t,temp,c='blue')
+    
+            if False:
+                temp = butter_highpass_filter(temp,
+                                             0.01,
+                                             self.sample_rate,
+                                             order=5)
+                std = np.std(temp)
+                idx = np.where(temp>(std*.1))[0]
+                idx2 = np.where(temp<=(std*.1))[0]
+                temp [idx] = np.median(temp[idx2])
+                #temp =  scipy.signal.medfilt(temp, kernel_size=1501)#[source]
+    
+                if k==0:
+                    plt.plot(t, temp, c='green')
+    
+                idx = np.where(np.abs(temp)<=(1*std))[0]
+    
+            if False:
+                temp = butter_lowpass_filter(temp,
+                                             0.01,
+                                             self.sample_rate,
+                                             order=5)
+                #std = np.std(temp)
+                #idx = np.where(temp>(std*1))[0]
+                #idx2 = np.where(temp<=(std*1))[0]
+                #temp [idx] = np.median(temp[idx2])
+                #
+                z=[1,2]
+                while z[0]>1E-8:
+                    z = np.polyfit(t, temp, 1)
+                    #print ("slopes: ", z)
+                    p = np.poly1d(z)
+    
+                    temp = temp - p(t)
+    
+            # just fit line to median of first 10k points and last 10k points
+            if self.detrend_model_order==1:
+    
+                median01 = np.array([np.median(temp[:10000]),
+                                    np.median(temp[-10000:])])
+                #median2= temp[-10000:]
+                t01 = np.array([0,temp.shape[0]-1])
+                #print (t01, median01)
+                z = np.polyfit(t01, median01, 1)
+    
+                p = np.poly1d(z)
+    
+                temp = temp - p(t)
+                traces_out[k] = traces_out[k] - p(t)
+    
+            if self.detrend_model_order==2:
+                #temp = butter_lowpass_filter(temp,
+                #                             0.01,
+                #                             self.sample_rate,
+                #                             order=5)
+    
+    
+                z = np.polyfit(t, temp, 2)
+    
+                p = np.poly1d(z)
+    
+                if k == 0:
+                    plt.plot(t, p(t), c='black')
+    
+    
+                traces_out[k] = traces_out[k] - p(t)
+    
+            if self.detrend_model_order >2:
+                temp = butter_lowpass_filter(temp,
+                                            0.01,
+                                            self.sample_rate,
+                                            order=5)
+    
+                z = np.polyfit(t, temp, self.detrend_model_order)
+    
+                p = np.poly1d(z)
+    
+                # if k == 0:
+                #     plt.plot(t, p(t), c='black')
+    
+                traces_out[k] = traces_out[k] - p(t)
+    
+            # if k==0:
+            #     plt.plot(t,temp,c='blue')
+            #     plt.plot(t,p(t),c='red')
+    
+    
+        #
+        return traces_out
+    
     #
-    #         if False:
-    #             temp = butter_highpass_filter(temp,
-    #                                          0.01,
-    #                                          self.sample_rate,
-    #                                          order=5)
-    #             std = np.std(temp)
-    #             idx = np.where(temp>(std*.1))[0]
-    #             idx2 = np.where(temp<=(std*.1))[0]
-    #             temp [idx] = np.median(temp[idx2])
-    #             #temp =  scipy.signal.medfilt(temp, kernel_size=1501)#[source]
-    #
-    #             if k==0:
-    #                 plt.plot(t, temp, c='green')
-    #
-    #             idx = np.where(np.abs(temp)<=(1*std))[0]
-    #
-    #         if False:
-    #             temp = butter_lowpass_filter(temp,
-    #                                          0.01,
-    #                                          self.sample_rate,
-    #                                          order=5)
-    #             #std = np.std(temp)
-    #             #idx = np.where(temp>(std*1))[0]
-    #             #idx2 = np.where(temp<=(std*1))[0]
-    #             #temp [idx] = np.median(temp[idx2])
-    #             #
-    #             z=[1,2]
-    #             while z[0]>1E-8:
-    #                 z = np.polyfit(t, temp, 1)
-    #                 #print ("slopes: ", z)
-    #                 p = np.poly1d(z)
-    #
-    #                 temp = temp - p(t)
-    #
-    #         # just fit line to median of first 10k points and last 10k points
-    #         if self.detrend_model_order==1:
-    #
-    #             median01 = np.array([np.median(temp[:10000]),
-    #                                 np.median(temp[-10000:])])
-    #             #median2= temp[-10000:]
-    #             t01 = np.array([0,temp.shape[0]-1])
-    #             #print (t01, median01)
-    #             z = np.polyfit(t01, median01, 1)
-    #
-    #             p = np.poly1d(z)
-    #
-    #             temp = temp - p(t)
-    #             traces_out[k] = traces_out[k] - p(t)
-    #
-    #         if self.detrend_model_order==2:
-    #             #temp = butter_lowpass_filter(temp,
-    #             #                             0.01,
-    #             #                             self.sample_rate,
-    #             #                             order=5)
-    #
-    #
-    #             z = np.polyfit(t, temp, 2)
-    #
-    #             p = np.poly1d(z)
-    #
-    #             if k == 0:
-    #                 plt.plot(t, p(t), c='black')
-    #
-    #
-    #             traces_out[k] = traces_out[k] - p(t)
-    #
-    #         if self.detrend_model_order >2:
-    #             temp = butter_lowpass_filter(temp,
-    #                                         0.01,
-    #                                         self.sample_rate,
-    #                                         order=5)
-    #
-    #             z = np.polyfit(t, temp, self.detrend_model_order)
-    #
-    #             p = np.poly1d(z)
-    #
-    #             # if k == 0:
-    #             #     plt.plot(t, p(t), c='black')
-    #
-    #             traces_out[k] = traces_out[k] - p(t)
-    #
-    #         # if k==0:
-    #         #     plt.plot(t,temp,c='blue')
-    #         #     plt.plot(t,p(t),c='red')
-    #
-    #
-    #     #
-    #     return traces_out
-
     def median_filter(self,traces):
 
         #
