@@ -176,6 +176,68 @@ class Calcium():
         self.session_id_toprocess = user_input
 
     #
+    def binarize_traces_single_trace(self, trace, scale_thresholds=1):
+
+        #
+        trace_in = trace.copy()[None]
+
+        #
+        F_filtered = self.low_pass_filter(trace_in)
+        #self.F_filtered -= np.median(self.F_filtered, axis=1)[None].T
+
+        # self.F_filtered = self.high_pass_filter(self.F_filtered)
+        #self.F_filtered = self.band_pass_filter(self.F)
+        F_filtered = self.filter_model(F_filtered)
+
+        # remove baseline again
+        #F_filtered -= np.median(F_filtered, axis=1)[None].T
+
+        ####################################################
+        ###### BINARIZE FILTERED FLUORESCENCE ONPHASE ######
+        ####################################################
+
+        #
+        self.thresholds = find_threshold_by_gaussian_fit(F_filtered, self.percentile_threshold)
+        print ("thresholds: ", self.thresholds)
+        self.thresholds[0] = self.thresholds[0] * scale_thresholds
+        print ("thresholds: ", self.thresholds)
+        
+        #
+        self.trace_onphase_bin = self.binarize_onphase2(F_filtered.copy(),
+                                                    self.min_width_event_onphase,
+                                                    self.min_thresh_std_onphase,
+                                                    'filtered fluorescence onphase')[0]
+
+        ####################################################
+        ###### BINARIZE FILTERED FLUORESCENCE UPPHASE ######
+        ####################################################
+        # THIS STEP SOMETIMES MISSES ONPHASE COMPLETELY DUE TO GRADIENT;
+        # So we minimally add onphases from above
+        #
+        plt.figure()
+        t = np.arange(F_filtered.shape[1])/30
+        plt.plot(t,F_filtered[0],c='blue')
+
+        der = np.float32(np.diff(F_filtered,
+                                        axis=1))
+        der_min_slope = 0
+        idx = np.where(der <= der_min_slope)
+        F_upphase = F_filtered.copy()
+        F_upphase[idx]=0
+
+        plt.plot(t,F_upphase[0],c='red')
+
+        #
+        self.stds = [None,None]
+
+        #
+        self.trace_upphase_bin = self.binarize_onphase2(F_upphase,
+                                                        self.min_width_event_upphase,
+                                                        self.min_thresh_std_upphase,
+                                                        'filtered fluorescence upphase')[0]
+
+
+    #
     def set_default_parameters_1p(self):
 
 
