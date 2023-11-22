@@ -1,0 +1,15 @@
+animal_id: DON-014451
+date: 20230303
+session_type: bmi1
+daytime: ''
+method: 2P
+notes: ''
+rot_angle: 0
+rot_center_yx:
+- 256
+- 256
+updated: true
+weight: ''
+yx_shift:
+- 7
+- 2

@@ -1,11 +1,21 @@
 # binarize2pcalcium
 Binarization pipelines for converting continuous 2P calcium imaging traces into binarized time series
 
-# Basic use
+# Required .yaml files
+
+You will need 2 .yaml files to read the meta data of your recordings
+
+ANIMAL_ID.yaml  <- inside the animal directory
+SESSION_ID.yaml <- inside the session directory
+
+Please see example .yaml files provided.
+
+# Code basic use
 
 ```
 from binarize2pcalcium import binarize2pcalcium as binca
 
+data_dir = '/media/cat/2pdata'
 animal_id = 'DON-011733'
 session = '20230203'
 
