@@ -6,6 +6,7 @@ Binarization pipelines for converting continuous 2P calcium imaging traces into 
 You will need 2 .yaml files to read the meta data of your recordings
 
 ANIMAL_ID.yaml  <- inside the animal directory
+
 SESSION_ID.yaml <- inside the session directory
 
 Please see example .yaml files provided.
