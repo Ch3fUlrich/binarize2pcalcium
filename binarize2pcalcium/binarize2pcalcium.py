@@ -198,9 +198,9 @@ class Calcium():
 
         #
         self.thresholds = find_threshold_by_gaussian_fit(F_filtered, self.percentile_threshold)
-        print ("thresholds: ", self.thresholds)
+       # print ("thresholds: ", self.thresholds)
         self.thresholds[0] = self.thresholds[0] * scale_thresholds
-        print ("thresholds: ", self.thresholds)
+       # print ("thresholds: ", self.thresholds)
         
         #
         self.trace_onphase_bin = self.binarize_onphase2(F_filtered.copy(),
@@ -214,9 +214,9 @@ class Calcium():
         # THIS STEP SOMETIMES MISSES ONPHASE COMPLETELY DUE TO GRADIENT;
         # So we minimally add onphases from above
         #
-        plt.figure()
-        t = np.arange(F_filtered.shape[1])/30
-        plt.plot(t,F_filtered[0],c='blue')
+        # plt.figure()
+        # t = np.arange(F_filtered.shape[1])/30
+        # plt.plot(t,F_filtered[0],c='blue')
 
         der = np.float32(np.diff(F_filtered,
                                         axis=1))
@@ -225,7 +225,7 @@ class Calcium():
         F_upphase = F_filtered.copy()
         F_upphase[idx]=0
 
-        plt.plot(t,F_upphase[0],c='red')
+        #plt.plot(t,F_upphase[0],c='red')
 
         #
         self.stds = [None,None]
@@ -235,7 +235,11 @@ class Calcium():
                                                         self.min_width_event_upphase,
                                                         self.min_thresh_std_upphase,
                                                         'filtered fluorescence upphase')[0]
-
+        #
+        # print ("upphase bin: ", self.trace_upphase_bin)
+        
+        #
+        return self.trace_upphase_bin
 
     #
     def set_default_parameters_1p(self):
@@ -1191,14 +1195,14 @@ class Calcium():
         else:
             plt.show()
         #plt.show()
-
     
-
+    #
     def binarize_onphase2(self,
                          traces,
                          min_width_event,
-                         #min_thresh_std,
+                         min_thresh_std,
                          text=''):
+                                                         
         '''
            Function that converts continuous float value traces to
            zeros and ones based on some threshold
@@ -3998,18 +4002,7 @@ def find_threshold_by_gaussian_fit(F_filtered, percentile_threshold):
         # F_filtered2 = butter_lowpass_filter(F_filtered[k],0.02,30,1)
         F_filtered2 = F_filtered[k]
 
-        #
-        if self.show_plots:
-            y = np.histogram(F_filtered2, bins=np.arange(-8, 16, 0.1))
-
-            x = y[1][:-1]
-            y = y[0] / np.max(y[0])  # / self.F_upphase_bin[k].shape[0] * 1000
-            #
-            plt.figure()
-            plt.plot(x, y)
-            # plt.show()
-
-        # OPTION 1: MEAN MIRRORIING
+          # OPTION 1: MEAN MIRRORIING
         if False:
             mean = np.mean(F_filtered2)
             idx = np.where(F_filtered2 <= mean)[0]
@@ -4026,8 +4019,8 @@ def find_threshold_by_gaussian_fit(F_filtered, percentile_threshold):
 
             pooled = np.hstack((pts_neg, pts_pos))
 
-            if self.show_plots:
-                plt.plot([y_mode, y_mode], [0, 1], '--')
+            # if self.show_plots:
+            #     plt.plot([y_mode, y_mode], [0, 1], '--')
 
         #
         norm = NormalDist.from_samples(pooled)
@@ -4042,11 +4035,7 @@ def find_threshold_by_gaussian_fit(F_filtered, percentile_threshold):
         #
         cumsum = np.cumsum(y_fit)
         cumsum = cumsum / np.max(cumsum)
-        print("cumsum: ", cumsum)
-        # plt.figure()
-        if self.show_plots:
-            plt.plot(x, y_fit)
-        # plt.show()
+       # print("cumsum: ", cumsum)
 
         idx = np.where(cumsum > percentile_threshold)[0]
 
@@ -4055,8 +4044,6 @@ def find_threshold_by_gaussian_fit(F_filtered, percentile_threshold):
         #
         thresh = x[idx[0]]
         # print ("threshold: ", thresh)
-        if self.show_plots:
-            plt.plot([thresh, thresh], [0, 1], '--')
         thresholds.append(thresh)
 
     return thresholds
