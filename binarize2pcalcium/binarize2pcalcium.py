@@ -79,9 +79,13 @@ def run_UMAP(data,
     return u
 
 #
-class Calcium():
+class Binarize():
 
-    def __init__(self, root_dir, animal_id, session_name=None, data_dir=None):
+    def __init__(self, 
+                 root_dir=None, 
+                 animal_id=None, 
+                 session_name=None, 
+                 data_dir=None):
         """
         Initializes a Calcium object. 
         An interface is presented to choose a session_name if the session_naem is not set initially.
@@ -98,17 +102,27 @@ class Calcium():
         """
 
         # SET MANY DEFAULTS
-        self.root_dir = root_dir
-        self.data_dir = data_dir
-        #self.data_dir = os.path.join(root_dir, animal_id)
-        self.animal_id = animal_id
-        self.session_name = session_name
+        if root_dir is not None:
+            self.root_dir = root_dir
+
+        if animal_id is not None:
+            self.animal_id = animal_id
+
+        if session_name is not None:
+            self.session_name = session_name
+
+        if data_dir is not None:
+            self.data_dir = data_dir
 
         #
         self.verbose = False
 
         #
         self.keep_plot = True
+
+        #
+        self.remove_bad_cells = True
+        print ("remove bad cells: ", self.remove_bad_cells)
 
         #
         self.recompute = False
@@ -120,7 +134,7 @@ class Calcium():
         self.check_zero_cells = True
 
         #
-        self.load_yaml_file(session_name)
+        #self.load_yaml_file(session_name)
         
         #
         self.save_figures = True
@@ -197,7 +211,7 @@ class Calcium():
         ####################################################
 
         #
-        self.thresholds = find_threshold_by_gaussian_fit(F_filtered, self.percentile_threshold)
+        self.thresholds = find_threshold_by_gaussian_fit(F_filtered, self.percentile_threshold, self.dff_min)
        # print ("thresholds: ", self.thresholds)
         self.thresholds[0] = self.thresholds[0] * scale_thresholds
        # print ("thresholds: ", self.thresholds)
@@ -237,6 +251,8 @@ class Calcium():
                                                         'filtered fluorescence upphase')[0]
         #
         # print ("upphase bin: ", self.trace_upphase_bin)
+        
+        self.trace_filtered = F_filtered
         
         #
         return self.trace_upphase_bin
@@ -393,9 +409,14 @@ class Calcium():
         #self.dff_min = 0.1                     # set the minimum dff value to be considered an event; required for weird negative dff values
                                             #   that sometimes come out of inscopix data
         self.show_plots = True
-        #self.percentile_threshold = 0.99999
+        self.percentile_threshold = 0.99999
         self.use_upphase = True
         self.parallel_flag = True
+        self.dff_min = 0.05  # min %DFF for [ca] burst to be considered a spike (default 5%) overwrites percentile threshold parameter
+        #c.percentile_threshold = 0.9999  # this is pretty fixed, we don't change it; we want [ca] bursts that are well outside the "physics-caused" noise
+        self.maximum_std_of_signal = 0.08  # if std of signal is greater than this, then we have a noisy signal and we don't want to binarize it
+                                        # - this is a very important flag! come see me if you don't understand it
+
         #self.maximum_std_of_signal = 0.03
 
         # these are paramters for inscopix which returns weird distributions
@@ -438,7 +459,7 @@ class Calcium():
         self.min_width_event_onphase = 30
         self.min_width_event_upphase = 10
 
-        self.show_plots =False
+        self.show_plots = True
         self.remove_ends = False                     # delete the first and last x seconds in case [ca] imaging had issues
         self.detrend_filter_threshold = 0.001
         self.mode_window = 30*30  # None: compute mode on entire time; Value: sliding window based - baseline detection # of frames to use to compute mode
@@ -1165,9 +1186,11 @@ class Calcium():
                   ", lowpass filter cutoff (hz): " +str(self.high_cutoff)+
                   ", detrend polynomial model order: "+str(self.detrend_model_order))
         
-        plt.suptitle(self.root_dir+
-                     self.animal_id+
+        try:
+            plt.suptitle(self.animal_id+
                      str(self.session_name))
+        except:
+            plt.suptitle(self.data_dir)
 
         #################
         if save_image==True:
@@ -1339,6 +1362,23 @@ class Calcium():
                 self.show_rasters(True)
 
     #
+    def binarize_suite2p_from_folder(self, data_dir):
+            
+        #
+        self.data_dir = data_dir
+        self.set_default_parameters_2p()
+        self.load_suite2p()
+
+        #
+        self.run_binarize()
+
+        # generate standard randomized plots:
+        if self.save_figures:
+            print ("...saving figures...")
+            self.save_sample_traces()
+            self.show_rasters(True)
+            
+    #
     def binarize_fluorescence(self):
 
         #
@@ -1383,275 +1423,283 @@ class Calcium():
                                  'binarized_traces.npz')
 
         #
-        if os.path.exists(fname_out)==False or self.recompute_binarization:
+        if os.path.exists(fname_out)==False or self.recompute_binarization:            
+            self.run_binarize()
 
-            ####################################################
-            ########### FILTER FLUROESCENCE TRACES #############
-            ####################################################
+    #
+    def run_binarize(self):
 
-            # compute DF/F on raw data, important to get correct SNR values
-            # abs is required sometimes for inscopix data that returns baseline fixed data
-            self.f0s = np.abs(np.median(self.F, axis=1))
-            
-            #try:
-            # TODO: This will create an error if self.inscopix_flag is present and set to false
-            # , because no self.dff will be present
-            if self.data_type=='1p':
-                self.dff = self.F
-                self.dff = self.F-self.f0s[:,None]
-            else:
-                self.dff = (self.F-self.f0s[:,None])/self.f0s[:,None]
+         #
+        fname_out = os.path.join(self.data_dir,
+                                 'binarized_traces.npz')
+        
+        ####################################################
+        ########### FILTER FLUROESCENCE TRACES #############
+        ####################################################
 
-            #except:
-            #    self.dff = (self.F-self.f0s[:,None])/self.f0s[:,None]
+        # compute DF/F on raw data, important to get correct SNR values
+        # abs is required sometimes for inscopix data that returns baseline fixed data
+        self.f0s = np.abs(np.median(self.F, axis=1))
+        
+        #try:
+        # TODO: This will create an error if self.inscopix_flag is present and set to false
+        # , because no self.dff will be present
+        if self.data_type=='1p':
+            self.dff = self.F
+            self.dff = self.F-self.f0s[:,None]
+        else:
+            self.dff = (self.F-self.f0s[:,None])/self.f0s[:,None]
 
-            # low pass filter data
-            self.F_filtered = self.low_pass_filter(self.dff)
+        #except:
+        #    self.dff = (self.F-self.f0s[:,None])/self.f0s[:,None]
 
-            #
-            if self.remove_ends:
-                # self.F_filtered[:, :300] = np.random.rand(300)
-                self.F_filtered[:, :300] = (np.random.rand(300) - 0.5) / 100  # +self.F_filtered[300]
-                self.F_filtered[:, -300:] = (np.random.rand(300) - 0.5) / 100
+        # low pass filter data
+        self.F_filtered = self.low_pass_filter(self.dff)
 
-            #
-            self.F_filtered_saved = self.F_filtered.copy()
+        #
+        if self.remove_ends:
+            # self.F_filtered[:, :300] = np.random.rand(300)
+            self.F_filtered[:, :300] = (np.random.rand(300) - 0.5) / 100  # +self.F_filtered[300]
+            self.F_filtered[:, -300:] = (np.random.rand(300) - 0.5) / 100
 
-            # apply detrending
-            self.F_filtered = self.detrend_traces(self.F_filtered)
-            self.F_detrended = self.F_filtered.copy()
+        #
+        self.F_filtered_saved = self.F_filtered.copy()
 
-            ####################################################
-            ###### BINARIZE FILTERED FLUORESCENCE ONPHASE ######
-            ####################################################
+        # apply detrending
+        self.F_filtered = self.detrend_traces(self.F_filtered)
+        self.F_detrended = self.F_filtered.copy()
 
-            #
-            ll = []
-            for k in range(self.F_detrended.shape[0]):
-                ll.append([self.F_detrended[k],k])
+        ####################################################
+        ###### BINARIZE FILTERED FLUORESCENCE ONPHASE ######
+        ####################################################
 
-            #
-            if self.parallel_flag:
-                self.thresholds = parmap.map(find_threshold_by_gaussian_fit_parallel,
-                                            ll,
-                                            self.percentile_threshold,
-                                            self.dff_min,
-                                            self.maximum_std_of_signal,
-                                            pm_processes = 16,
-                                            pm_pbar=True,
-                                            parallel=True)
-            else:
-                self.thresholds = []
-                for l in tqdm(ll):
-                    self.thresholds.append(find_threshold_by_gaussian_fit_parallel(
-                                        l,
+        #
+        ll = []
+        for k in range(self.F_detrended.shape[0]):
+            ll.append([self.F_detrended[k],k])
+
+        #
+        if self.parallel_flag:
+            self.thresholds = parmap.map(find_threshold_by_gaussian_fit_parallel,
+                                        ll,
                                         self.percentile_threshold,
-                                        self.dff_min))
+                                        self.dff_min,
+                                        self.maximum_std_of_signal,
+                                        pm_processes = 16,
+                                        pm_pbar=True,
+                                        parallel=True)
+        else:
+            self.thresholds = []
+            for l in tqdm(ll):
+                self.thresholds.append(find_threshold_by_gaussian_fit_parallel(
+                                    l,
+                                    self.percentile_threshold,
+                                    self.dff_min))
+        
+        # compute moments for inscopix data especially needed
+        if self.moment_flag:
+            self.find_threshold_by_moment()
+
+        #
+        self.F_onphase_bin = self.binarize_onphase2(self.F_detrended,
+                                                    self.min_width_event_onphase,
+                                                    #self.min_thresh_std_onphase,
+                                                    'filtered fluorescence onphase')
+
+        # detect onset of ONPHASE to ensure UPPHASES overlap at least in one location with ONPHASE
+        def detect_onphase(traces):
+            a = traces.copy()
+            locs = []
+            for k in range(a.shape[0]):
+                idx = np.where((a[k][1:] - a[k][:-1]) == 1)[0]
+                locs.append(idx)
+
+            locs = np.array(locs, dtype=object)
+            return locs
+
+        onphases = detect_onphase(self.F_onphase_bin)
+
+        ####################################################
+        ###### BINARIZE FILTERED FLUORESCENCE UPPHASE ######
+        ####################################################
+        # THIS STEP SOMETIMES MISSES ONPHASE COMPLETELY DUE TO GRADIENT;
+        # So we minimally add onphases from above
+        self.der = np.float32(np.gradient(self.F_detrended,
+                                            axis=1))
+        self.der_min_slope = 0
+        idx = np.where(self.der <= self.der_min_slope)
+        F_upphase = self.F_filtered.copy()
+        F_upphase[idx] = 0
+        self.stds = [None, None]
+        #
+        self.F_upphase_bin = self.binarize_onphase2(F_upphase,
+                                                    self.min_width_event_upphase,
+                                                    #self.min_thresh_std_upphase,
+                                                    'filtered fluorescence upphase'
+                                                    )
+
+        #print("   Oasis based binarization skipped by default ... ")
+        self.spks = np.nan
+        self.spks_smooth_bin = np.nan
+        self.spks_upphase_bin = np.nan
+        self.oasis_x_F = np.nan
+        self.spks_x_F = np.nan
+
+        #
+        self.F_processed = self.F_filtered
+
+        #
+        print ("...saving data...")
+        if self.save_python:
+            np.savez(fname_out,
+                    # binarization data
+                    F_raw = self.F,
+                    F_filtered = self.F_filtered_saved,
+                    F_detrended = self.F_detrended,
+                    F_processed = self.F_filtered,
+                    F_onphase=self.F_onphase_bin,
+                    F_upphase=self.F_upphase_bin,
+                    stds = self.stds,
+                    derivative = self.der,
+                    der_min_slope = self.der_min_slope,
+                    spks=self.spks,
+                    spks_smooth_upphase=self.spks_smooth_bin,
+                    high_cutoff = self.high_cutoff,
+                    low_cutoff = self.low_cutoff,
+                    detrend_model_order= self.detrend_model_order,
+
+                    #
+                    oasis_x_F = self.spks_x_F,
+                    # parameters saved to file as dictionary
+                    oasis_thresh_prefilter=self.oasis_thresh_prefilter,
+                    min_thresh_std_oasis=self.min_thresh_std_oasis,
+                    min_thresh_std_onphase=self.min_thresh_std_onphase,
+                    min_thresh_std_upphase=self.min_thresh_std_upphase,
+                    min_width_event_onphase=self.min_width_event_onphase,
+                    min_width_event_upphase=self.min_width_event_upphase,
+                    min_width_event_oasis=self.min_width_event_oasis,
+                    min_event_amplitude=self.min_event_amplitude,
+                    DFF = self.dff
+                    )
             
-            # compute moments for inscopix data especially needed
-            if self.moment_flag:
-                self.find_threshold_by_moment()
+            # same but use self.fname_inscopix as the name of the file
+            if self.data_type=='1p':
+                np.savez(self.fname_inscopix.replace('.csv','_binarized_traces.npz'),
+                    # binarization data
+                    F_raw = self.F,
+                    F_filtered = self.F_filtered_saved,
+                    F_detrended = self.F_detrended,
+                    F_processed = self.F_filtered,
+                    F_onphase=self.F_onphase_bin,
+                    F_upphase=self.F_upphase_bin,
+                    stds = self.stds,
+                    derivative = self.der,
+                    der_min_slope = self.der_min_slope,
+                    spks=self.spks,
+                    spks_smooth_upphase=self.spks_smooth_bin,
+                    high_cutoff = self.high_cutoff,
+                    low_cutoff = self.low_cutoff,
+                    detrend_model_order= self.detrend_model_order,
 
-            #
-            self.F_onphase_bin = self.binarize_onphase2(self.F_detrended,
-                                                        self.min_width_event_onphase,
-                                                        #self.min_thresh_std_onphase,
-                                                        'filtered fluorescence onphase')
-
-            # detect onset of ONPHASE to ensure UPPHASES overlap at least in one location with ONPHASE
-            def detect_onphase(traces):
-                a = traces.copy()
-                locs = []
-                for k in range(a.shape[0]):
-                    idx = np.where((a[k][1:] - a[k][:-1]) == 1)[0]
-                    locs.append(idx)
-
-                locs = np.array(locs, dtype=object)
-                return locs
-
-            onphases = detect_onphase(self.F_onphase_bin)
-
-            ####################################################
-            ###### BINARIZE FILTERED FLUORESCENCE UPPHASE ######
-            ####################################################
-            # THIS STEP SOMETIMES MISSES ONPHASE COMPLETELY DUE TO GRADIENT;
-            # So we minimally add onphases from above
-            self.der = np.float32(np.gradient(self.F_detrended,
-                                              axis=1))
-            self.der_min_slope = 0
-            idx = np.where(self.der <= self.der_min_slope)
-            F_upphase = self.F_filtered.copy()
-            F_upphase[idx] = 0
-            self.stds = [None, None]
-            #
-            self.F_upphase_bin = self.binarize_onphase2(F_upphase,
-                                                        self.min_width_event_upphase,
-                                                        #self.min_thresh_std_upphase,
-                                                        'filtered fluorescence upphase'
-                                                        )
-
-            #print("   Oasis based binarization skipped by default ... ")
-            self.spks = np.nan
-            self.spks_smooth_bin = np.nan
-            self.spks_upphase_bin = np.nan
-            self.oasis_x_F = np.nan
-            self.spks_x_F = np.nan
-
-            #
-            self.F_processed = self.F_filtered
-
-            #
-            print ("...saving data...")
-            if self.save_python:
-                np.savez(fname_out,
-                     # binarization data
-                     F_raw = self.F,
-                     F_filtered = self.F_filtered_saved,
-                     F_detrended = self.F_detrended,
-                     F_processed = self.F_filtered,
-                     F_onphase=self.F_onphase_bin,
-                     F_upphase=self.F_upphase_bin,
-                     stds = self.stds,
-                     derivative = self.der,
-                     der_min_slope = self.der_min_slope,
-                     spks=self.spks,
-                     spks_smooth_upphase=self.spks_smooth_bin,
-                     high_cutoff = self.high_cutoff,
-                     low_cutoff = self.low_cutoff,
-                     detrend_model_order= self.detrend_model_order,
-
-                     #
-                     oasis_x_F = self.spks_x_F,
-                     # parameters saved to file as dictionary
-                     oasis_thresh_prefilter=self.oasis_thresh_prefilter,
-                     min_thresh_std_oasis=self.min_thresh_std_oasis,
-                     min_thresh_std_onphase=self.min_thresh_std_onphase,
-                     min_thresh_std_upphase=self.min_thresh_std_upphase,
-                     min_width_event_onphase=self.min_width_event_onphase,
-                     min_width_event_upphase=self.min_width_event_upphase,
-                     min_width_event_oasis=self.min_width_event_oasis,
-                     min_event_amplitude=self.min_event_amplitude,
-                     DFF = self.dff
-                     )
-                
-                # same but use self.fname_inscopix as the name of the file
-                if self.data_type=='1p':
-                    np.savez(self.fname_inscopix.replace('.csv','_binarized_traces.npz'),
-                        # binarization data
-                        F_raw = self.F,
-                        F_filtered = self.F_filtered_saved,
-                        F_detrended = self.F_detrended,
-                        F_processed = self.F_filtered,
-                        F_onphase=self.F_onphase_bin,
-                        F_upphase=self.F_upphase_bin,
-                        stds = self.stds,
-                        derivative = self.der,
-                        der_min_slope = self.der_min_slope,
-                        spks=self.spks,
-                        spks_smooth_upphase=self.spks_smooth_bin,
-                        high_cutoff = self.high_cutoff,
-                        low_cutoff = self.low_cutoff,
-                        detrend_model_order= self.detrend_model_order,
-
-                        #
-                        oasis_x_F = self.spks_x_F,
-                        # parameters saved to file as dictionary
-                        oasis_thresh_prefilter=self.oasis_thresh_prefilter,
-                        min_thresh_std_oasis=self.min_thresh_std_oasis,
-                        min_thresh_std_onphase=self.min_thresh_std_onphase,
-                        min_thresh_std_upphase=self.min_thresh_std_upphase,
-                        min_width_event_onphase=self.min_width_event_onphase,
-                        min_width_event_upphase=self.min_width_event_upphase,
-                        min_width_event_oasis=self.min_width_event_oasis,
-                        min_event_amplitude=self.min_event_amplitude,
-                        DFF = self.dff
-                        )
+                    #
+                    oasis_x_F = self.spks_x_F,
+                    # parameters saved to file as dictionary
+                    oasis_thresh_prefilter=self.oasis_thresh_prefilter,
+                    min_thresh_std_oasis=self.min_thresh_std_oasis,
+                    min_thresh_std_onphase=self.min_thresh_std_onphase,
+                    min_thresh_std_upphase=self.min_thresh_std_upphase,
+                    min_width_event_onphase=self.min_width_event_onphase,
+                    min_width_event_upphase=self.min_width_event_upphase,
+                    min_width_event_oasis=self.min_width_event_oasis,
+                    min_event_amplitude=self.min_event_amplitude,
+                    DFF = self.dff
+                    )
 
 
-            #
-            if self.save_matlab:
-                #io.savemat("a.mat", {"array": a})
+        #
+        if self.save_matlab:
+            #io.savemat("a.mat", {"array": a})
 
-                scipy.io.savemat(fname_out.replace('npz','mat'),
-                     # binarization data
-                     {""
-                      "F_onphase":self.F_onphase_bin,
-                      "F_upphase":self.F_upphase_bin,
-                      "spks":self.spks,
-                      "spks_smooth_upphase":self.spks_smooth_bin,
-                      #"stds": self.stds,
-                      "derivative":  self.der,
-                      "der_min_slope": self.der_min_slope,
+            scipy.io.savemat(fname_out.replace('npz','mat'),
+                    # binarization data
+                    {""
+                    "F_onphase":self.F_onphase_bin,
+                    "F_upphase":self.F_upphase_bin,
+                    "spks":self.spks,
+                    "spks_smooth_upphase":self.spks_smooth_bin,
+                    #"stds": self.stds,
+                    "derivative":  self.der,
+                    "der_min_slope": self.der_min_slope,
 
-                      # binarization data
-                     "F_raw": self.F,
+                    # binarization data
+                    "F_raw": self.F,
 
-                      "F_detrended": self.F_detrended,
+                    "F_detrended": self.F_detrended,
 
-                      "spks":self.spks,
-                      "high_cutoff": self.high_cutoff,
-                      "low_cutoff": self.low_cutoff,
-                      "detrend_model_order": self.detrend_model_order,
+                    "spks":self.spks,
+                    "high_cutoff": self.high_cutoff,
+                    "low_cutoff": self.low_cutoff,
+                    "detrend_model_order": self.detrend_model_order,
 
-                      # parameters saved to file as dictionary
-                      "DFF": self.dff,
+                    # parameters saved to file as dictionary
+                    "DFF": self.dff,
 
-                     # raw and filtered data;
-                     "F_filtered":self.F_filtered_saved,
-                     "oasis_x_F": self.spks_x_F,
+                    # raw and filtered data;
+                    "F_filtered":self.F_filtered_saved,
+                    "oasis_x_F": self.spks_x_F,
 
-                     # parameters saved to file as dictionary
-                     "oasis_thresh_prefilter":self.oasis_thresh_prefilter,
-                     "min_thresh_std_oasis":self.min_thresh_std_oasis,
-                     "min_thresh_std_onphase":self.min_thresh_std_onphase,
-                     "min_thresh_std_uphase":self.min_thresh_std_upphase,
-                     "min_width_event_onphase":self.min_width_event_onphase,
-                     "min_width_event_upphase":self.min_width_event_upphase,
-                     "min_width_event_oasis":self.min_width_event_oasis,
-                     "min_event_amplitude":self.min_event_amplitude,
-                      }
-                                 )
-                
-                if self.data_type=='1p':
-                    scipy.io.savemat(self.fname_inscopix.replace('.csv','_binarized_traces.mat'),
-                        # binarization data
-                        {""
-                        "F_onphase":self.F_onphase_bin,
-                        "F_upphase":self.F_upphase_bin,
-                        "spks":self.spks,
-                        "spks_smooth_upphase":self.spks_smooth_bin,
-                        #"stds": self.stds,
-                        "derivative":  self.der,
-                        "der_min_slope": self.der_min_slope,
+                    # parameters saved to file as dictionary
+                    "oasis_thresh_prefilter":self.oasis_thresh_prefilter,
+                    "min_thresh_std_oasis":self.min_thresh_std_oasis,
+                    "min_thresh_std_onphase":self.min_thresh_std_onphase,
+                    "min_thresh_std_uphase":self.min_thresh_std_upphase,
+                    "min_width_event_onphase":self.min_width_event_onphase,
+                    "min_width_event_upphase":self.min_width_event_upphase,
+                    "min_width_event_oasis":self.min_width_event_oasis,
+                    "min_event_amplitude":self.min_event_amplitude,
+                    }
+                                )
+            
+            if self.data_type=='1p':
+                scipy.io.savemat(self.fname_inscopix.replace('.csv','_binarized_traces.mat'),
+                    # binarization data
+                    {""
+                    "F_onphase":self.F_onphase_bin,
+                    "F_upphase":self.F_upphase_bin,
+                    "spks":self.spks,
+                    "spks_smooth_upphase":self.spks_smooth_bin,
+                    #"stds": self.stds,
+                    "derivative":  self.der,
+                    "der_min_slope": self.der_min_slope,
 
-                        # binarization data
-                        "F_raw": self.F,
+                    # binarization data
+                    "F_raw": self.F,
 
-                        "F_detrended": self.F_detrended,
+                    "F_detrended": self.F_detrended,
 
-                        "spks":self.spks,
-                        "high_cutoff": self.high_cutoff,
-                        "low_cutoff": self.low_cutoff,
-                        "detrend_model_order": self.detrend_model_order,
+                    "spks":self.spks,
+                    "high_cutoff": self.high_cutoff,
+                    "low_cutoff": self.low_cutoff,
+                    "detrend_model_order": self.detrend_model_order,
 
-                        # parameters saved to file as dictionary
-                        "DFF": self.dff,
+                    # parameters saved to file as dictionary
+                    "DFF": self.dff,
 
-                        # raw and filtered data;
-                        "F_filtered":self.F_filtered_saved,
-                        "oasis_x_F": self.spks_x_F,
+                    # raw and filtered data;
+                    "F_filtered":self.F_filtered_saved,
+                    "oasis_x_F": self.spks_x_F,
 
-                        # parameters saved to file as dictionary
-                        "oasis_thresh_prefilter":self.oasis_thresh_prefilter,
-                        "min_thresh_std_oasis":self.min_thresh_std_oasis,
-                        "min_thresh_std_onphase":self.min_thresh_std_onphase,
-                        "min_thresh_std_uphase":self.min_thresh_std_upphase,
-                        "min_width_event_onphase":self.min_width_event_onphase,
-                        "min_width_event_upphase":self.min_width_event_upphase,
-                        "min_width_event_oasis":self.min_width_event_oasis,
-                        "min_event_amplitude":self.min_event_amplitude,
-                        }
-                                    ) 
+                    # parameters saved to file as dictionary
+                    "oasis_thresh_prefilter":self.oasis_thresh_prefilter,
+                    "min_thresh_std_oasis":self.min_thresh_std_oasis,
+                    "min_thresh_std_onphase":self.min_thresh_std_onphase,
+                    "min_thresh_std_uphase":self.min_thresh_std_upphase,
+                    "min_width_event_onphase":self.min_width_event_onphase,
+                    "min_width_event_upphase":self.min_width_event_upphase,
+                    "min_width_event_oasis":self.min_width_event_oasis,
+                    "min_event_amplitude":self.min_event_amplitude,
+                    }
+                                ) 
 
     def save_sample_traces(self, spacing = 10, scale = 15):
 
@@ -1690,19 +1738,23 @@ class Calcium():
         plt.ylabel("Neuron id")
         plt.xlabel("Time (sec)")
         plt.xlim(t[0], t[-1])
-        plt.suptitle(self.root_dir+
-                     self.animal_id+
+        try:
+            plt.suptitle(self.animal_id+
                      str(self.session_name))
+        except:
+            plt.suptitle(self.data_dir)
         
         plt.suptitle("DFF PLOT (dashed lines are 50% DFF)")
 
         fname_out = os.path.join(data_dir_local, 
                                 "sample_traces.png")
 
-
+        #
 
         plt.savefig(fname_out,dpi=300)
         plt.close()
+
+        ####################################
 
         plt.figure(figsize=(25,12.5))
         ax=plt.subplot(111)
@@ -1729,9 +1781,11 @@ class Calcium():
             ctr += 1
 
         # plt.legend(fontsize=20)
-        plt.suptitle(self.root_dir+
-                     self.animal_id+
+        try:
+            plt.suptitle(self.animal_id+
                      str(self.session_name))
+        except:
+            plt.suptitle(self.data_dir)
         
         #
         plt.suptitle("Normalized Plots to max DFF (grey shading is std)")
@@ -3988,7 +4042,7 @@ def load_PCA2(root_dir,
     return pca, X_pca
 
 
-def find_threshold_by_gaussian_fit(F_filtered, percentile_threshold):
+def find_threshold_by_gaussian_fit(F_filtered, percentile_threshold, dff_min):
     ''' Function fits a gaussian to the left (lower) part of the [ca] value distrbition centred on the mode
         it then sets the thrshold based on the
 
@@ -4044,6 +4098,9 @@ def find_threshold_by_gaussian_fit(F_filtered, percentile_threshold):
         #
         thresh = x[idx[0]]
         # print ("threshold: ", thresh)
-        thresholds.append(thresh)
+        
+        thresh_max = max(thresh, dff_min)
+
+        thresholds.append(thresh_max)
 
     return thresholds

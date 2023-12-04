@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='binarize2pcalcium',
-    version='0.1.26',
+    version='0.1.39',
     packages=['binarize2pcalcium'],
     install_requires=[
         'numpy',
