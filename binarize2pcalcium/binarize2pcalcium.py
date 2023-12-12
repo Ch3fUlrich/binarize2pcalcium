@@ -139,6 +139,11 @@ class Binarize():
         #
         self.save_figures = True
         
+        #
+        print ("...setting 2p parameters...")
+        self.set_default_parameters_2p()
+
+        
     #
     def load_yaml_file(self, session_name=None):
         session_name = str(session_name) if type(session_name)!=str else session_name
@@ -1385,7 +1390,7 @@ class Binarize():
         if self.data_type=='2p':
 
             # set paramatrs
-            self.set_default_parameters_2p()
+            #self.set_default_parameters_2p()
 
             # if we don't already have a data dir, set to default
             if not self.data_dir:
@@ -1402,7 +1407,7 @@ class Binarize():
         #
         elif self.data_type=='1p':
 
-            #
+            # Note these should be reloaded outside of this function or they might overwrite user preferences
             self.set_default_parameters_1p()
 
             #
