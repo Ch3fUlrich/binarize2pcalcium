@@ -122,7 +122,7 @@ class Binarize():
 
         #
         self.remove_bad_cells = True
-        print ("remove bad cells: ", self.remove_bad_cells)
+        print ("remove bad cells (default): ", self.remove_bad_cells)
 
         #
         self.recompute = False
@@ -140,7 +140,7 @@ class Binarize():
         self.save_figures = True
         
         #
-        print ("...setting 2p parameters...")
+        print ("...setting 2p parameters by default..")
         self.set_default_parameters_2p()
 
         
