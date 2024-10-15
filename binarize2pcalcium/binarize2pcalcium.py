@@ -79,7 +79,7 @@ def run_UMAP(data,
     return u
 
 #
-class Binarize():
+class Calcium():
 
     def __init__(self, 
                  root_dir=None, 
