@@ -15,7 +15,7 @@ Please see example .yaml files provided.
 # Code basic use
 
 ```
-from binca import binarize2pcalcium as binca
+from binarize2pcalcium import binarize2pcalcium as binca
 
 data_dir = '/media/cat/2pdata'
 animal_id = 'DON-011733'
