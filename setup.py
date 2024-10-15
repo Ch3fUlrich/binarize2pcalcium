@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name='binarize2pcalcium',
+    name='binca',
     version='0.1.41',
     packages=['binarize2pcalcium'],
     install_requires=[
