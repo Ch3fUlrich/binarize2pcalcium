@@ -1,4 +1,7 @@
 This code was written by [Catalin](https://github.com/catubc)
+# Install
+pip install binca
+
 # binarize2pcalcium
 Binarization pipelines for converting continuous 2P calcium imaging traces into binarized time series
 
