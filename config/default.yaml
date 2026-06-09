@@ -93,6 +93,9 @@ der_min_slope: 0
 #   true (default, recommended).
 use_upphase: true
 
+# parallel_flag: Use parallel processing (parmap) for threshold computation.
+parallel_flag: true
+
 # remove_ends: Replace first/last N samples with low-amplitude noise to
 #   remove filter edge artifacts.
 #   - 2p: false (per source)

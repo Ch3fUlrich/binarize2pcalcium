@@ -36,6 +36,7 @@ der_min_slope: 0
 use_upphase: true
 remove_ends: false                    # per source default
 show_plots: true
+parallel_flag: true
 
 # ---- SAVE FLAGS -----------------------------------------------------------
 save_python: true

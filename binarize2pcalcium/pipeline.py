@@ -22,10 +22,11 @@ Example:
 from dataclasses import dataclass, field
 import numpy as np
 import os
+import scipy.stats
 from tqdm import tqdm
 
 from .preprocess import compute_dff, low_pass_filter, detrend_traces
-from .thresholds import find_threshold_by_gaussian_fit
+from .thresholds import find_threshold_by_gaussian_fit_parallel
 from .binarization import binarize_onphase, binarize_upphase
 from .io import load_suite2p, load_inscopix
 
@@ -91,15 +92,23 @@ def binarize(
     F: np.ndarray | str,
     sample_rate: float = 30.0,
     data_type: str = '2p',
-    high_cutoff: float = 2.0,
+    high_cutoff: float = 0.5,
     detrend_order: int = 1,
-    percentile_threshold: float = 0.9999,
+    percentile_threshold: float = 0.99999,
     dff_min: float = 0.05,
-    min_width_onphase: int = 15,
-    min_width_upphase: int = 7,
+    min_width_onphase: int = 30,
+    min_width_upphase: int = 10,
     use_upphase: bool = True,
-    remove_ends: bool = True,
+    remove_ends: bool = False,
     verbose: bool = False,
+    parallel_flag: bool = True,
+    maximum_std_of_signal: float = 0.08,
+    moment_flag: bool = False,
+    moment: int = 2,
+    moment_threshold: float = 0.01,
+    moment_scaling: float = 0.5,
+    detrend_filter_threshold: float = 0.001,
+    mode_window: int | None = 900,
     **kwargs,
 ) -> BinarizationResult:
     """Run the full calcium binarization pipeline in one call.
@@ -122,6 +131,25 @@ def binarize(
         use_upphase: Whether to compute upphase binarization (default: True).
         remove_ends: Replace first/last 300 samples with noise to remove edge artifacts.
         verbose: Print progress information.
+        parallel_flag: Use parallel processing (parmap) for threshold computation
+            across cells (default: True). Set False for smaller datasets or
+            when parmap causes issues.
+        maximum_std_of_signal: If the std of the filtered signal of a cell
+            exceeds this value, its threshold is set to 1 (effectively removing
+            it from binarization).  2P default: 0.08; 1P default: 0.03.
+        moment_flag: Enable moment-based threshold adjustment. If True, cells
+            whose moment (skewness-like) exceeds moment_threshold get their
+            threshold overridden to moment_scaling. Default False (2P); 1P
+            typically sets True.
+        moment: Moment order for scipy.stats.moment (default: 2).
+        moment_threshold: Moment value above which a cell is considered "bad"
+            and gets the moment_scaling threshold (default: 0.01).
+        moment_scaling: Replacement threshold for cells that exceed
+            moment_threshold (default: 0.5).
+        detrend_filter_threshold: Very-lowpass cutoff (Hz) used to extract
+            the bleaching trend before polynomial fitting (default: 0.001).
+        mode_window: Sliding-window width in frames for piecewise mode-based
+            baseline detection.  None = global mode.  Default 900 (30 s × 30 Hz).
 
     Returns:
         BinarizationResult with all pipeline outputs.
@@ -174,37 +202,74 @@ def binarize(
 
     # Step 4: Remove edge artifacts (optional)
     if remove_ends and n_timepoints > 600:
-        F_filtered[:, :300] = (np.random.rand(n_cells, 300) - 0.5) / 100
-        F_filtered[:, -300:] = (np.random.rand(n_cells, 300) - 0.5) / 100
+        F_filtered[:, :300] = (np.random.rand(300) - 0.5) / 100
+        F_filtered[:, -300:] = (np.random.rand(300) - 0.5) / 100
 
     # Step 5: Detrend
     F_detrended = detrend_traces(
-        F_filtered, sample_rate, detrend_model_order=detrend_order
+        F_filtered, sample_rate,
+        detrend_model_order=detrend_order,
+        detrend_filter_threshold=detrend_filter_threshold,
+        mode_window=mode_window,
     )
 
     # Step 6: Compute thresholds from detrended data
     if verbose:
         print("  Computing thresholds...")
-    thresholds = find_threshold_by_gaussian_fit(
-        F_detrended, percentile_threshold, dff_min
-    )
+    # Build per-cell [trace, cell_id] pairs for threshold computation
+    ll = []
+    for k in range(F_detrended.shape[0]):
+        ll.append([F_detrended[k], k])
+
+    if parallel_flag:
+        # Parallel path — parmap.map over cells (original legacy approach)
+        import parmap
+        thresholds = parmap.map(
+            find_threshold_by_gaussian_fit_parallel,
+            ll,
+            percentile_threshold,
+            dff_min,
+            maximum_std_of_signal,
+            pm_processes=min(16, F_detrended.shape[0]),
+            pm_pbar=True,
+            parallel=True,
+        )
+    else:
+        # Sequential path — matches legacy exactly: does NOT pass
+        # maximum_std_of_signal (maximum_sigma defaults to 100).
+        thresholds = []
+        for l in tqdm(ll, desc='fitting mode to physics'):
+            thresholds.append(
+                find_threshold_by_gaussian_fit_parallel(
+                    l, percentile_threshold, dff_min,
+                )
+            )
+
+    # Step 6a: Moment-based threshold adjustment (optional; primarily for 1P)
+    if moment_flag and verbose:
+        print("  Adjusting thresholds via moment analysis...")
+    if moment_flag:
+        for k in range(F_detrended.shape[0]):
+            moment_val = scipy.stats.moment(F_detrended[k], moment=moment)
+            if moment_val >= moment_threshold:
+                thresholds[k] = moment_scaling
 
     # Step 7: Binarize onphase from detrended data
     if verbose:
         print("  Binarizing onphase...")
-    onphase = binarize_onphase(F_detrended, thresholds, min_width_onphase)
+    onphase = binarize_onphase(F_detrended, thresholds, min_width_onphase, "filtered fluorescence onphase")
 
-    # Step 8: Binarize upphase — use F_filtered_saved (pre-detrend),
-    #         but compute the gradient from F_detrended (original logic)
+    # Step 8: Binarize upphase — legacy uses detrended self.F_filtered
+    #         (modified in-place by detrend_traces at line 1474).
+    #         Our detrend_traces returns a copy, so use F_detrended.
     if use_upphase:
         if verbose:
             print("  Binarizing upphase...")
         upphase = binarize_upphase(
-            F_filtered_saved,
+            F_detrended,
             thresholds,
             min_width_upphase,
             der_min_slope=0,
-            F_detrended=F_detrended,
         )
     else:
         upphase = np.zeros_like(F_detrended)

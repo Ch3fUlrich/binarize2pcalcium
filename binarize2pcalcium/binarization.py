@@ -14,6 +14,7 @@ def binarize_onphase(
     traces: np.ndarray,
     thresholds: list[float],
     min_width_event: int = 15,
+    text: str = '',
 ) -> np.ndarray:
     """Binarize traces by thresholding: values >= threshold become 1.
 
@@ -29,7 +30,7 @@ def binarize_onphase(
     """
     traces_bin = traces.copy()
     for k in trange(
-        traces.shape[0], desc='binarizing continuous traces', position=0, leave=True
+        traces.shape[0], desc='binarizing continuous traces'+text, position=0, leave=True
     ):
         temp = traces[k].copy()
         thresh_local = thresholds[k]
@@ -168,7 +169,7 @@ def binarize_upphase(
     F_upphase = F_filtered.copy()
     F_upphase[idx] = 0
 
-    return binarize_onphase(F_upphase, thresholds, min_width_event)
+    return binarize_onphase(F_upphase, thresholds, min_width_event, " filtered fluorescence upphase")
 
 
 def smooth_traces(

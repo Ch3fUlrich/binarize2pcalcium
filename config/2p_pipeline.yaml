@@ -23,6 +23,9 @@ maximum_std_of_signal: 0.08
 
 # ---- MOMENT-BASED THRESHOLD (disabled for 2P) -----------------------------
 moment_flag: false
+moment: 2
+moment_threshold: 0.01
+moment_scaling: 0.5
 
 # ---- EVENT DETECTION ------------------------------------------------------
 min_width_event_onphase: 30          # per source (1 s at 30 Hz)
