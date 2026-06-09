@@ -97,6 +97,17 @@ with open('config/2p_pipeline.yaml') as f:
 result = binarize(F, **params)
 ```
 
+## Documentation
+
+Comprehensive reference documentation is available in the `docs/` folder:
+
+- **`docs/index.md`** — landing page with links to all documentation files
+- **`docs/pipeline.md`** — full reference for the `binarize()` function and `BinarizationResult`
+- **`docs/modules.md`** — every public function across all modules
+- **`docs/config.md`** — configuration YAML parameter reference
+- **`docs/api.md`** — quick-start API cheatsheet
+- **`docs/refactoring.md`** — overview of the monolithic-to-modular refactoring
+
 ## Jupyter Notebooks
 
 Example notebooks are in the `notebooks/` directory (repo root):
