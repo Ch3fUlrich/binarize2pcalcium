@@ -158,3 +158,4 @@ cython_debug/
 
 # Data
 *.npy
+*pytest_output.txt
