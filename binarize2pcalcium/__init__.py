@@ -84,6 +84,9 @@ from .data_simulation import (
     simulate_and_binarize,
 )
 
+# simulate_and_binarize now returns (result, event_gt, dff_true) — 3-tuple
+
+
 __all__ = [
     # Pipeline (primary API)
     "binarize",
