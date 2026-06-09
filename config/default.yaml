@@ -1,0 +1,116 @@
+# Binarize2PCalcium Configuration — Default Parameters
+# ======================================================
+# These defaults match the original Calcium class' set_default_parameters_2p()
+# and set_default_parameters_1p(). All values are extracted from the source.
+#
+# Use this file as a reference; copy and customize for your experiment.
+
+# ---- DATA INPUT -----------------------------------------------------------
+# data_type: '2p' for two-photon (Suite2p), '1p' for one-photon (Inscopix)
+data_type: 2p
+# sample_rate: Imaging sampling rate in Hz
+sample_rate: 30
+
+# ---- SIGNAL FILTERING -----------------------------------------------------
+# high_cutoff: Lowpass filter cutoff frequency in Hz.
+#   Controls smoothness of filtered Ca traces.
+#   Lower = smoother but less temporal precision.
+#   - 2P: 0.5 Hz (per source default_set_parameters_2p)
+#   - 1P: 1.0 Hz (per source set_default_parameters_1p)
+high_cutoff: 0.5
+# low_cutoff: Highpass filter cutoff in Hz (for bandpass Chebyshev filter step)
+low_cutoff: 0.005
+
+# ---- DETRENDING -----------------------------------------------------------
+# detrend_model_order: Polynomial order for photobleaching/trend removal.
+#   1 = linear (default).  2 = quadratic.
+detrend_model_order: 1
+# detrend_model_type: Trend removal method.  'mode' or 'polynomial'.
+detrend_model_type: mode
+# detrend_filter_threshold: Very-lowpass cutoff (Hz) used to extract the
+#   bleaching trend before polynomial fitting.
+detrend_filter_threshold: 0.001
+# mode_window: Sliding-window width (frames) for piecewise mode-based baseline
+#   detection.  None = global mode over entire trace.
+mode_window: 900        # 30 s * 30 Hz = 900 frames
+
+# ---- THRESHOLD DETECTION --------------------------------------------------
+# percentile_threshold: Gaussian-fit cumulative probability for threshold.
+#   Based on fitting a Gaussian to the mode-centred lower half of the dF/F
+#   distribution (mode-mirroring method).  The threshold is the value at
+#   which the cumulative probability exceeds this percentile.
+#   - 0.99999: Very conservative — only extreme bursts (default in source).
+#   - 0.9999:  Slightly more permissive.
+#   - 0.999:   Permissive.
+percentile_threshold: 0.99999
+
+# dff_min: Minimum dF/F value for a valid event (floor threshold).
+#   Even if the Gaussian-fit threshold is lower, events must exceed dff_min.
+#   - 2p: 0.05 (5 % dF/F, per source)
+#   - 1p: 0.10 (10 % dF/F, per source — higher because Inscopix data is
+#          sometimes baseline-subtracted and returns negative dF/F)
+dff_min: 0.05
+
+# maximum_std_of_signal: If the standard deviation of the filtered signal
+#   exceeds this value the cell is considered too noisy and its threshold
+#   is set to 1 (effectively removing it from binarization).
+#   - 2p: 0.08
+#   - 1p: 0.03 (Inscopix data is noisier, so a tighter bound is used)
+maximum_std_of_signal: 0.08
+
+# ---- MOMENT-BASED THRESHOLD (1P only) -------------------------------------
+# moment_flag: Enable moment-based threshold adjustment.
+#   true  = Check the moment (skewness) of the Ca distribution; if it exceeds
+#           moment_threshold, override the per-cell threshold with moment_scaling.
+#   false = Disabled.
+#   - 2p: false (default)
+#   - 1p: true  (Inscopix data often has skewed distributions)
+moment_flag: false
+moment: 2                         # Moment order (2 = variance / skewness-like)
+moment_threshold: 0.01            # Moment value above which a cell is "bad"
+moment_scaling: 0.5               # Replacement threshold for "bad" cells
+
+# ---- EVENT DETECTION ------------------------------------------------------
+# min_width_event_onphase: Minimum event width in samples.
+#   Events narrower than this are discarded.
+#   - 2p: 30 (1 second at 30 Hz, per source)
+#   - 1p: sample_rate (1 second at 20 Hz = 20)
+min_width_event_onphase: 30
+
+# min_width_event_upphase: Minimum event width in samples for upphase.
+#   - 2p: 10 (per source)
+#   - 1p: sample_rate // 3 (≈ 6 at 20 Hz)
+min_width_event_upphase: 10
+
+# der_min_slope: Minimum derivative for upphase detection.
+#   Portions of the trace with derivative <= der_min_slope are zeroed
+#   before upphase binarization (keeps only the rising phase).
+#   0 = keep only rising portions (default).
+der_min_slope: 0
+
+# ---- PROCESSING FLAGS -----------------------------------------------------
+# use_upphase: Compute both onphase AND upphase binarization.
+#   true (default, recommended).
+use_upphase: true
+
+# remove_ends: Replace first/last N samples with low-amplitude noise to
+#   remove filter edge artifacts.
+#   - 2p: false (per source)
+#   - 1p: false (per source)
+remove_ends: false
+
+# parallel_flag: Use parallel processing for threshold computation.
+parallel_flag: true
+
+# show_plots: Display diagnostic plots during processing.
+show_plots: true
+
+# ---- SAVE FLAGS -----------------------------------------------------------
+# save_python: Save output as .npz file.
+save_python: true
+# save_matlab: Save output as .mat file.
+save_matlab: false
+
+# ---- OUTPUT ---------------------------------------------------------------
+# save_results: Path to save results (.npz file).  Leave empty to skip.
+save_results: null

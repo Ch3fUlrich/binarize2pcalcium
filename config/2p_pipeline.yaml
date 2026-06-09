@@ -1,0 +1,43 @@
+# Binarize2PCalcium — 2-Photon Pipeline
+# =======================================
+# Pre-configured from Calcium.set_default_parameters_2p() defaults.
+
+# ---- DATA INPUT -----------------------------------------------------------
+data_type: 2p
+sample_rate: 30
+
+# ---- SIGNAL FILTERING -----------------------------------------------------
+high_cutoff: 0.5                      # per source — smoother than 1.0 Hz default
+low_cutoff: 0.005
+
+# ---- DETRENDING -----------------------------------------------------------
+detrend_model_order: 1
+detrend_model_type: mode
+detrend_filter_threshold: 0.001
+mode_window: 900                     # 30 s * 30 Hz
+
+# ---- THRESHOLD DETECTION --------------------------------------------------
+percentile_threshold: 0.99999
+dff_min: 0.05
+maximum_std_of_signal: 0.08
+
+# ---- MOMENT-BASED THRESHOLD (disabled for 2P) -----------------------------
+moment_flag: false
+
+# ---- EVENT DETECTION ------------------------------------------------------
+min_width_event_onphase: 30          # per source (1 s at 30 Hz)
+min_width_event_upphase: 10          # per source (≈ 333 ms at 30 Hz)
+der_min_slope: 0
+
+# ---- PROCESSING FLAGS -----------------------------------------------------
+use_upphase: true
+remove_ends: false                   # per source default
+show_plots: true
+parallel_flag: true
+
+# ---- SAVE FLAGS -----------------------------------------------------------
+save_python: true
+save_matlab: false
+
+# ---- OUTPUT ---------------------------------------------------------------
+save_results: null

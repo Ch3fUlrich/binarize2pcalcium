@@ -1,0 +1,45 @@
+# Binarize2PCalcium — 1-Photon (Inscopix) Pipeline
+# ==================================================
+# Pre-configured from Calcium.set_default_parameters_1p() defaults.
+
+# ---- DATA INPUT -----------------------------------------------------------
+data_type: 1p
+sample_rate: 20
+
+# ---- SIGNAL FILTERING -----------------------------------------------------
+high_cutoff: 1.0
+low_cutoff: 0.005
+
+# ---- DETRENDING -----------------------------------------------------------
+detrend_model_order: 1
+detrend_model_type: mode
+detrend_filter_threshold: 0.001
+mode_window: 600        # 30 s * 20 Hz
+
+# ---- THRESHOLD DETECTION --------------------------------------------------
+percentile_threshold: 0.99999
+dff_min: 0.10                         # Higher floor — Inscopix can give negative dF/F
+maximum_std_of_signal: 0.03           # Tighter than 2p — Inscopix is noisier
+
+# ---- MOMENT-BASED THRESHOLD (enabled for 1P) ------------------------------
+moment_flag: true
+moment: 2
+moment_threshold: 0.01
+moment_scaling: 0.5
+
+# ---- EVENT DETECTION ------------------------------------------------------
+min_width_event_onphase: 20           # sample_rate (1 s)
+min_width_event_upphase: 6            # sample_rate // 3
+der_min_slope: 0
+
+# ---- PROCESSING FLAGS -----------------------------------------------------
+use_upphase: true
+remove_ends: false                    # per source default
+show_plots: true
+
+# ---- SAVE FLAGS -----------------------------------------------------------
+save_python: true
+save_matlab: true                     # 1p saves .mat by default
+
+# ---- OUTPUT ---------------------------------------------------------------
+save_results: null
