@@ -1826,7 +1826,7 @@ class Calcium():
         # params for exponential kernel
         M = 100
         tau = 100  # !3 sec decay
-        d_exp = scipy.signal.exponential(M, 0, tau, False)
+        d_exp = scipy.signal.windows.exponential(M, 0, tau, False)
         #d_step = np.zeros(100)
         #d_step[25:75]=1
 
@@ -3088,6 +3088,7 @@ def find_overlaps(ids, footprints):
 
 #
 def make_overlap_database(res):
+    import pandas as pd
     data = []
     for k in range(len(res)):
         for p in range(len(res[k])):
@@ -3359,7 +3360,7 @@ def correlations_parallel(ids,
             #corr = get_corr(temp1, temp2, zscore)
             
             #
-            corr, corr_z, corr_array = get_corr2(temp1, temp2, zscore)
+            corr, corr_z = get_corr2(temp1, temp2, zscore)
 
             #print ("corr: ", corr)
             #cz.append(corr_z[0])
@@ -3560,7 +3561,7 @@ def generate_cell_overlaps(c,data_dir):
 
 def alpha_shape(points, alpha=0.6):
 
-    from shapely.ops import cascaded_union, polygonize
+    from shapely.ops import unary_union, polygonize
     from scipy.spatial import Delaunay
     import shapely.geometry as geometry
     """
@@ -3597,7 +3598,7 @@ def alpha_shape(points, alpha=0.6):
     m = geometry.MultiLineString(edge_points)
     triangles = list(polygonize(m))
 
-    return cascaded_union(triangles), edge_points
+    return unary_union(triangles), edge_points
 
 
 def pca_multi_sessions(data_dirs, 
