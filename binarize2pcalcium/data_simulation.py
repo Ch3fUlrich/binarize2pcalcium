@@ -115,6 +115,62 @@ class SimulationConfig:
     # ---- Seed ----
     seed: int = 42
 
+    # ------------------------------------------------------------------
+    # Predefined configurations
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def for_2p(cls, **overrides) -> "SimulationConfig":
+        """Preconfigured for 2-photon GCaMP6s imaging (30 Hz, wide events).
+
+        Returns a SimulationConfig with parameters tuned so the binarization
+        pipeline produces detectable onphase/upphase events on the simulated
+        data.
+
+        Accepts keyword ``**overrides`` to adjust individual parameters,
+        e.g. ``SimulationConfig.for_2p(n_cells=100, seed=7)``.
+        """
+        params = dict(
+            n_cells=30,
+            n_timepoints=9000,
+            sample_rate=30.0,
+            tau_rise_mean=0.15,       # GCaMP6s rise
+            tau_decay_mean=1.8,        # GCaMP6s decay — wide enough for detection
+            amplitude_mean=0.30,
+            baseline_photons=300.0,
+            read_noise_std=4.0,
+            event_rate=0.03,
+            drift_scale=0.02,
+            seed=42,
+        )
+        params.update(overrides)
+        return cls(**params)
+
+    @classmethod
+    def for_1p(cls, **overrides) -> "SimulationConfig":
+        """Preconfigured for 1-photon / Inscopix imaging (20 Hz, noisy).
+
+        Lower photon count, higher read noise, slower GCaMP kinetics —
+        tuned so the binarization pipeline produces detectable events.
+
+        Accepts keyword ``**overrides`` to adjust individual parameters.
+        """
+        params = dict(
+            n_cells=25,
+            n_timepoints=6000,
+            sample_rate=20.0,
+            tau_rise_mean=0.18,
+            tau_decay_mean=2.0,
+            amplitude_mean=0.30,
+            baseline_photons=150.0,      # fewer photons → more shot noise
+            read_noise_std=6.0,          # higher read noise
+            event_rate=0.03,
+            drift_scale=0.03,
+            seed=42,
+        )
+        params.update(overrides)
+        return cls(**params)
+
 
 # ---------------------------------------------------------------------------
 # Main simulation

@@ -158,6 +158,7 @@ cython_debug/
 
 # Data
 *.npy
+*.npz
 *pytest_output.txt
 
 # AI
