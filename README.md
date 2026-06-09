@@ -35,7 +35,8 @@ This project uses [uv](https://docs.astral.sh/uv/) as the Python package manager
 ### Install for development
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/Ch3fUlrich/binarize2pcalcium
+git switch whatever
 cd binarize2pcalcium
 
 # Create virtual environment and install all dependencies including dev/test
