@@ -99,7 +99,7 @@ result = binarize(F, **params)
 
 ## Jupyter Notebooks
 
-Example notebooks are in `binarize2pcalcium/notebooks/`:
+Example notebooks are in the `notebooks/` directory (repo root):
 
 - `2p_analysis.ipynb` — Full 2P binarization workflow with visualization
 - `1p_analysis.ipynb` — 1P (Inscopix) binarization workflow
