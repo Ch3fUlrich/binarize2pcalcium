@@ -1,0 +1,59 @@
+[project]
+name = "binarize2pcalcium"
+version = "0.1.0"
+description = "Binarization pipelines for converting continuous 2P calcium imaging traces into binarized time series"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "matplotlib>=3.10.9",
+    "networkx>=3.6.1",
+    "numpy>=2.4.6",
+    "opencv-python>=4.13.0.92",
+    "pandas>=3.0.3",
+    "parmap>=1.7.0",
+    "pywavelets>=1.9.0",
+    "pyyaml>=6.0.3",
+    "scikit-learn>=1.9.0",
+    "scipy>=1.17.1",
+    "shapely>=2.1.2",
+    "tqdm>=4.68.1",
+    "umap-learn>=0.5.12",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-cov>=7.0.0",
+]
+test = [
+    "pytest>=9.0.3",
+    "pytest-cov>=7.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["binarize2pcalcium*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = ["-v", "--tb=short", "-p", "no:warnings"]
+
+[tool.coverage.run]
+source = ["binarize2pcalcium"]
+omit = ["tests/*", "*/notebooks/*"]
+
+[tool.coverage.report]
+exclude_also = [
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
