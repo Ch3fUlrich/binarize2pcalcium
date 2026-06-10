@@ -1,25 +1,46 @@
-"""Realistic calcium imaging data simulation.
+"""Calcium imaging data simulation for 2P (Suite2p) and 1P (Inscopix).
 
-Produces synthetic fluorescence traces that mimic GCaMP-based two-photon
-calcium imaging data.  Uses physics-based noise models and the canonical
-difference-of-exponentials transient shape so that the binarization
-pipeline produces detectable onphase/upphase events.
+Produces synthetic fluorescence traces that mimic real experimental data
+and are compatible with the ``binarize()`` pipeline.
 
-GCaMP6f kinetics (typical):
+===============  ===================  ========================================
+Output type      Data representation  Pipeline dF/F formula
+===============  ===================  ========================================
+2P (for_2p)      Photon counts        ``(F - F0) / F0``  (fractional dF/F)
+1P (for_1p)      CNMF-E temporal      ``F - F0``  (baseline-subtracted,
+                 components (~1-5      typical of Inscopix traces)
+                 arbitrary units)
+===============  ===================  ========================================
+
+.. note::
+
+    1P Inscopix data represents *CNMF-E-extracted temporal components*,
+    not raw photon counts.  CNMF-E scales each cell's temporal trace to
+    arbitrary fluorescence units (typically ~1-5).  The binarization
+    pipeline subtracts the cell-specific median baseline to compute dF/F.
+
+GCaMP6 kinetics (typical):
     - Rise time (τ_on):  0.05 - 0.15 s
-    - Decay time (τ_off): 0.5 - 0.8 s
+    - Decay time (τ_off): 0.5 - 2.0 s
 
 Transient model:
     f(t) = A · (exp(-Δt/τ_off) − exp(-Δt/τ_on))
 
-Noise model (photon-limited):
+Noise model (2P):
     F_obs = Poisson(F_true) + N(0, σ_read)
+
+Noise model (1P):
+    F_obs = F_true + N(0, σ_read)   (additive Gaussian, higher floor)
 
 References
 ----------
     Chen et al. (2013) "Ultrasensitive fluorescent proteins for imaging
     neuronal activity."  Nature 499, 295-300.
     https://doi.org/10.1038/nature12354
+
+    Zhou et al. (2018) "Efficient and accurate extraction of in vivo
+    calcium signals from microendoscopic video data."  eLife 7, e28728.
+    https://doi.org/10.7554/eLife.28728  (CNMF-E algorithm)
 """
 
 from __future__ import annotations
@@ -148,10 +169,17 @@ class SimulationConfig:
 
     @classmethod
     def for_1p(cls, **overrides) -> "SimulationConfig":
-        """Preconfigured for 1-photon / Inscopix imaging (20 Hz, noisy).
+        """Preconfigured for 1-photon / Inscopix miniscope imaging (20 Hz).
 
-        Lower photon count, higher read noise, slower GCaMP kinetics —
-        tuned so the binarization pipeline produces detectable events.
+        Simulates CNMF-E-extracted fluorescence traces (arbitrary units,
+        typical range ~1-5) with realistic GCaMP kinetics, higher noise
+        floor, and slow baseline drift characteristic of freely behaving
+        animals.
+
+        The raw traces are in the range expected by Inscopix preprocessing:
+        CNMF-E outputs temporal components scaled to ~1-5 A.U., and the
+        pipeline subtracts the median baseline (dF/F = F - F0).  Thresholds
+        are tuned to detect transients of 10-30% above baseline.
 
         Accepts keyword ``**overrides`` to adjust individual parameters.
         """
@@ -161,11 +189,11 @@ class SimulationConfig:
             sample_rate=20.0,
             tau_rise_mean=0.18,
             tau_decay_mean=2.0,
-            amplitude_mean=0.30,
-            baseline_photons=150.0,      # fewer photons → more shot noise
-            read_noise_std=6.0,          # higher read noise
+            amplitude_mean=0.20,         # 20 % transient above baseline
+            baseline_photons=2.0,        # CNMF-E temporal component scale (~1-5 A.U.)
+            read_noise_std=0.15,         # higher relative noise for 1P
             event_rate=0.03,
-            drift_scale=0.03,
+            drift_scale=0.01,
             seed=42,
         )
         params.update(overrides)
@@ -186,12 +214,24 @@ def simulate_calcium_data(
     slow baseline drift.  The output is a noisy fluorescence matrix
     suitable as input to `binarize()`.
 
+    For 2-photon simulations (``for_2p``), the output represents raw
+    photon counts (typical range 200-400, shot-noise limited).  The
+    pipeline normalizes these via (F - F0) / F0.
+
+    For 1-photon / Inscopix simulations (``for_1p``), the output
+    represents CNMF-E-extracted temporal components in arbitrary
+    fluorescence units (typical range 1-5).  The pipeline subtracts the
+    median baseline (F - F0) to produce dF/F, and thresholds detect
+    transients of 10-30 % above baseline.
+
     Returns
     -------
     F_noisy : ndarray  [n_cells, n_timepoints]
-        Noisy fluorescence (photon counts + read noise).
+        Noisy fluorescence traces.
+        - 2P: photon counts (~200-400).
+        - 1P: CNMF-E temporal components (~1-5 A.U.).
     dff_true : ndarray  [n_cells, n_timepoints]
-        Ground-truth dF/F (noise-free, before baseline drift).
+        Ground-truth dF/F (fractional, noise-free, before baseline drift).
     """
     if config is None:
         config = SimulationConfig()

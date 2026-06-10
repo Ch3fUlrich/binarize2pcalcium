@@ -259,17 +259,17 @@ def binarize(
         print("  Binarizing onphase...")
     onphase = binarize_onphase(F_detrended, thresholds, min_width_onphase, "filtered fluorescence onphase")
 
-    # Step 8: Binarize upphase — legacy uses detrended self.F_filtered
-    #         (modified in-place by detrend_traces at line 1474).
-    #         Our detrend_traces returns a copy, so use F_detrended.
+    # Step 8: Binarize upphase — v2 (1P-optimised) uses pre-detrend
+    #         F_filtered for binarization, F_detrended for gradient.
     if use_upphase:
         if verbose:
             print("  Binarizing upphase...")
         upphase = binarize_upphase(
-            F_detrended,
+            F_filtered_saved,
             thresholds,
             min_width_upphase,
             der_min_slope=0,
+            F_detrended=F_detrended,
         )
     else:
         upphase = np.zeros_like(F_detrended)
