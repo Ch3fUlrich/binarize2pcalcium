@@ -46,7 +46,7 @@ pythonpath = ["."]
 
 [tool.coverage.run]
 source = ["binarize2pcalcium"]
-omit = ["tests/*", "*/notebooks/*"]
+omit = ["tests/*", "*/notebooks/*", "binarize2pcalcium/binarize2pcalcium.py"]
 
 [tool.coverage.report]
 exclude_also = [
